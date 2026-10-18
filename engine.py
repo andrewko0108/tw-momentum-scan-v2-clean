@@ -8,7 +8,7 @@ from typing import Optional
 import math
 import pandas as pd
 
-TRACKING_START = "2026-10-19"
+TRACKING_START = "2026-10-16"
 RSI_PERIOD, KDJ_PERIOD = 14, 9
 BEAR_VOLUME_RATIO = 1.0    # strictly greater than prior day
 BEAR_BODY_FRACTION = .05   # (open-close)/open >= 5%
