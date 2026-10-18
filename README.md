@@ -12,7 +12,7 @@
 
 ### 選擇性條件 B（任一成立即可）
 
-- **B1 ETF 持股增加**：指定 ETF 任一支在 *該交易日* 揭露的某檔普通股 **quantityChange > 0 股**。預設追蹤 ETF `0050,006208,00981A`；你可修改 GitHub Actions 的 `ETF_SYMBOLS` 環境變數。此判斷是 **ETF 的持有股數增加**，而非權重增加，也不等於能證明主動買入。**無法核驗揭露日時顯示未知**，不以 B1 作進場依據。
+- **B1 ETF 持股增加**：指定 ETF 任一支在 *該交易日* 揭露的某檔普通股 **quantityChange > 0 股**。預設追蹤 ETF `0050,00981A,00403A`；你可修改 GitHub Actions 的 `ETF_SYMBOLS` 環境變數。此判斷是 **ETF 的持有股數增加**，而非權重增加，也不等於能證明主動買入。**無法核驗揭露日時顯示未知**，不以 B1 作進場依據。
 - **B2 三日均價突破**：今天收盤 **> 昨天、前天、大前天的收盤價平均**（不含今天）。
 - **B3 強勢 RSI + KD**：`RSI14(t) > RSI14(t-1) > 70`、`K(t) > D(t) > 50`、`K(t) > K(t-1)`，三者必須同時成立。RSI 使用 Wilder 14；KD 使用 9 日 RSV 與 **9,3,3** 平滑 K/D，起始 K=D=50；當 9 日最高與最低相等時 RSV=50。
 - **B4 漲幅條件**：最近兩個交易日 **每日收盤對前一日收盤的漲幅都嚴格 >5%**，**或** 今天收盤價相較 **5 個交易日前收盤價** 累計漲幅 **>20%**。
@@ -33,7 +33,7 @@
 - 最新與歷史皆為 **未還原 OHLCV**；並未調整股票分割、除權息，因此不等同總報酬或真正的還原 K 線回測。
 - ETF 持股 B1：Fugle `GET /ownership/etf-holdings/{symbol}`，需要**具備權限的 API key / 可能需付費**；也能以 `--etf-csv` 提供經自行驗證的 CSV。其變動是對上一個 *有揭露日*，不保證前一交易日；**沒有驗證資料實際公布時間**，因此歷史 ETF B1 屬於事後訊號，不能直接作無前視偏誤的回測。
 - 不會因 ETF API 失敗而臆測 ETF 未加碼；沒有 API 時 B1 顯示 unknown，B2～B4 仍可觸發入選。
-- 只在交易所最新收盤資料日期等於台灣當天日期時自動出報告。若是假日、資料尚未更新、日期不符或任一市場資料過少，**不公布不完整市場名單**。
+- 排程僅在今天已有雙市場完整收盤行情時發布最新報告。**手動執行（workflow_dispatch）** 即使是週末、國定假日，或今日尚未有完整收盤資料，也允許重印**最近一個已完成交易日**的報告；絕不將該報告標示為今日新行情。資料日期不符或任一市場資料過少時仍拒絕不完整市場名單。
 
 ## 3. 盤後報告（GitHub Actions Artifacts）
 
@@ -52,7 +52,7 @@
 3. 以 [GitHub Desktop](https://desktop.github.com/) 把新 Repository clone 到電腦。在專案本機資料夾內，複製本 ZIP 解出的所有檔案與子資料夾，包含 `.github`、`tests`、`engine.py` 等。
 4. GitHub Desktop 填 commit 訊息 `Initialize momentum scan v2`，按 **Commit to main → Push origin**。推送後在 GitHub 的 Code 頁應能看到 `.github/workflows/daily_scan.yml`。
 5. 若需要 B1 ETF，自行申請 Fugle API key（必須具備 ETF Holdings 端點權限）。到 Repository → **Settings → Secrets and variables → Actions → New repository secret**，名稱 `FUGLE_API_KEY`，值為個人的密鑰；**不要上傳到程式碼或聊天室**。
-6. 到 **Actions → Taiwan Momentum V2 Daily → Run workflow** 手動測試。**週六週日、休市日、資料未更新日會 SKIP，正常不產生新的報告**。正常交易日 18:30（台灣時間）GitHub 會嘗試自動執行，可能延遲。
+6. 到 **Actions → Taiwan Momentum V2 Daily → Run workflow** 手動測試。**手動執行**在非交易日會使用最近完整交易日行情產出回顧報告；**自動排程**在休市日／未公布新行情時仍會 SKIP。報告追蹤起點固定為 2026-10-19，因此該日期之前不會有新策略入選紀錄。正常交易日 18:30（台灣時間）GitHub 會嘗試自動執行，可能延遲。
 7. 成功執行的 Actions 詳細頁 → **Artifacts** → `momentum-v2-report-N` → 下載 ZIP，解壓縮雙擊 `report.html`。
 
 > 此專案是新 ZIP，需要在你的 GitHub 帳號建立新 Repository 後自行 push。系統沒有替你建立或修改任何現有 GitHub Repository。
