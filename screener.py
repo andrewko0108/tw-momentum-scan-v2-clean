@@ -12,6 +12,7 @@ import data_sources as ds
 from engine import TRACKING_START,run_replay
 from etf_data import fetch_holdings,load_csv
 from reports import write_all
+from dashboard import write_dashboard
 
 TZ=ZoneInfo('Asia/Taipei')
 
@@ -182,6 +183,7 @@ def main():
     if not result['latest']:
         print(f'No tracked market dates since {start}; nothing to publish.',flush=True);return
     write_all(args.output,result,info)
+    write_dashboard(args.output,result,info)
     print(f'As-of {as_of}: {len(resolved)} symbols; '
           f'watchlist {len(result["watchlist"])}, added {len(result["added"])}, '
           f'removed {len(result["removed"])}, continuous {len(result["continuous"])}; '
