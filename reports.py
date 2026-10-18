@@ -71,7 +71,9 @@ def render(result, info, path):
     warnings=[]
     if etf.get('status') != 'available':warnings.append('ETF 持股資料未完全取得：B1 缺資料的部分標示未知，不推定為零。')
     warnings.append('價格與累積報酬以未還原收盤價計算；不含交易成本與股利，訊號收盤後才知道，當日收盤成交屬理論假設。')
-    if info.get('report_mode') == 'manual_prior_session':
+    if info.get('report_mode') == 'manual_exact_session':
+        warnings.insert(0, f"指定交易日回顧：執行日 {info.get('execution', '—')}，行情截止日 {info['source_date']}；僅以該日及此前歷史資料計算訊號。")
+    elif info.get('report_mode') == 'manual_prior_session':
         warnings.insert(0, f"手動回顧報告：執行日 {info.get('execution', '—')}，行情截止日 {info['source_date']}。此報告重現最近交易日收盤狀態，不代表休市日有新成交或新訊號。")
     warn_html=''.join('<p class="alert">'+esc(w)+'</p>' for w in warnings)
     content=f'''<!DOCTYPE html><html lang="zh-Hant"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/><title>台股動能篩選｜{today}</title>
