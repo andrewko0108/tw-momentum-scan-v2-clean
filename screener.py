@@ -60,7 +60,7 @@ def cli():
     p.add_argument('--csv',help='Offline OHLCV CSV (date,code,name,volume,open,high,low,close)')
     p.add_argument('--sectors',help='Offline official-company registry CSV (market,code,industry)')
     p.add_argument('--etf-csv',help='Optional verified ETF holdings changes CSV')
-    p.add_argument('--as-of',help='Run historical/offline day; live mode must be most recent session')
+    p.add_argument('--as-of',help='Exact session YYYY-MM-DD for manual historical report, including 2026-10-16 (Day 1)')
     p.add_argument('--start',default=TRACKING_START,help='First possible entry YYYY-MM-DD')
     p.add_argument('--allow-stale',action='store_true',help='Allow a manual report from the last complete session on a non-trading day')
     return p.parse_args()
@@ -99,6 +99,29 @@ def choose_latest_session(session_obj, twse, tpex, official_day, today, allow_st
     return None
 
 
+
+def choose_exact_session(session_obj, requested_day: str, execution_day: str):
+    """Verified TWSE and TPEx market-wide dated closes for an explicit replay day.
+
+    Do not use the current/latest OpenAPI snapshots for historical requests.
+    Each official dated parser validates the returned source date; both boards
+    must be populated for the *same requested date*.
+    """
+    requested = date.fromisoformat(requested_day)
+    executed = date.fromisoformat(execution_day)
+    if requested > executed:
+        raise ValueError(f'Cannot request a future session {requested_day} (today: {execution_day})')
+    twse = ds.historical_twse(session_obj, requested_day)
+    tpex = ds.historical_tpex(session_obj, requested_day)
+    if len(twse) < 500 or len(tpex) < 350:
+        raise RuntimeError(
+            f'{requested_day}: dated quotes incomplete; TWSE={len(twse)}, TPEx={len(tpex)}; '
+            'refuse to publish incomplete all-market report'
+        )
+    print(f'[EXACT SESSION] {requested_day}: TWSE={len(twse)} TPEx={len(tpex)}', flush=True)
+    return twse, tpex, requested_day
+
+
 def main():
     args=cli()
     today=datetime.now(TZ).date().isoformat()
@@ -118,15 +141,19 @@ def main():
         official_day=as_of
         origin='Offline CSV supplied by user, NOT real-time market completeness verified'
     else:
-        s,twse,tpex,official_day=ds.fetch_official_latest_pair()
         prior_session_report=False
-        if not args.as_of:
+        exact_session_report=bool(args.as_of)
+        if args.as_of:
+            # Manually request any verifiable historical trading date, without
+            # contaminating a Day 1 report with subsequent market prices.
+            s=ds.session()
+            twse,tpex,official_day=choose_exact_session(s,args.as_of,today)
+        else:
+            s,twse,tpex,official_day=ds.fetch_official_latest_pair()
             selection=choose_latest_session(s,twse,tpex,official_day,today,allow_stale=args.allow_stale)
             if selection is None:
                 return
             twse,tpex,official_day,prior_session_report=selection
-        if args.as_of and args.as_of!=official_day:
-            raise RuntimeError('Live mode --as-of must equal aligned official latest date; use --csv for historical replay')
         if official_day<start:
             print(f'SKIP: official date {official_day} before new strategy start {start}',flush=True);return
         as_of=official_day
@@ -149,7 +176,9 @@ def main():
           'raw_records_loaded':history.rows_loaded,'price_basis':'unadjusted exchange OHLCV',
           'coverage':'full-market coverage checks passed' if not args.csv else 'offline sample; NOT verified full market',
           'execution':today,
-          'report_mode':'manual_prior_session' if not args.csv and prior_session_report else 'latest_session'}
+          'report_mode':('manual_exact_session' if not args.csv and exact_session_report
+                         else 'manual_prior_session' if not args.csv and prior_session_report
+                         else 'latest_session')}
     if not result['latest']:
         print(f'No tracked market dates since {start}; nothing to publish.',flush=True);return
     write_all(args.output,result,info)
