@@ -13,7 +13,7 @@ jobs:
     env:
       PYTHONUNBUFFERED: '1'
       FUGLE_API_KEY: ${{ secrets.FUGLE_API_KEY }}
-      ETF_SYMBOLS: '0050,006208,00981A'
+      ETF_SYMBOLS: '0050,00981A,00403A'
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -32,7 +32,12 @@ jobs:
           path: data/archive
           key: momentum-v2-archive-${{ runner.os }}-2026-v1
       - name: Run screener
-        run: python screener.py --cache data/archive --output output
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            python screener.py --cache data/archive --output output --allow-stale
+          else
+            python screener.py --cache data/archive --output output
+          fi
       - name: Upload screening report
         if: always()
         uses: actions/upload-artifact@v4
