@@ -33,7 +33,7 @@ def load_csv(path: str):
 
 def fetch_holdings(start: str, through: str, symbols: list[str] | None = None):
     key=os.getenv('FUGLE_API_KEY','').strip()
-    symbols = symbols or [s.strip() for s in os.getenv('ETF_SYMBOLS','0050,006208,00981A').split(',') if s.strip()]
+    symbols = symbols or [s.strip() for s in os.getenv('ETF_SYMBOLS','0050,00981A,00403A').split(',') if s.strip()]
     if not key:
         return {},{'status':'unavailable','source':'Fugle ETF Holdings',
                    'queried':symbols,'failed':symbols,
