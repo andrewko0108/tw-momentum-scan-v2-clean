@@ -1,6 +1,11 @@
 name: Taiwan Momentum V2 Daily
 on:
   workflow_dispatch:
+    inputs:
+      report_date:
+        description: '指定交易日 YYYY-MM-DD；填 2026-10-16 產生 Day 1，留空代表最近已完成的交易日'
+        required: false
+        type: string
   schedule:
     # 18:30 Asia/Taipei (UTC+8) Monday to Friday; holiday/stale-date guard in Python.
     - cron: '30 10 * * 1-5'
@@ -32,9 +37,15 @@ jobs:
           path: data/archive
           key: momentum-v2-archive-${{ runner.os }}-2026-v1
       - name: Run screener
+        env:
+          REPORT_DATE: ${{ inputs.report_date }}
         run: |
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            python screener.py --cache data/archive --output output --allow-stale
+            if [ -n "$REPORT_DATE" ]; then
+              python screener.py --cache data/archive --output output --as-of "$REPORT_DATE"
+            else
+              python screener.py --cache data/archive --output output --allow-stale
+            fi
           else
             python screener.py --cache data/archive --output output
           fi
