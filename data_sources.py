@@ -43,7 +43,7 @@ INDUSTRY_NAMES = {
 CODE = re.compile(r"^[1-9][0-9]{3}$")
 EXCLUDED_SUFFIX = ("DR", "R1", "R2", "特")
 # Preserve sufficient pre-start daily OHLCV for 120-day SMA + Wilder RSI.
-TRACKING_START = "2026-10-19"
+TRACKING_START = "2026-10-16"
 PRESTART_BARS = 200
 TZ_TAIPEI = ZoneInfo("Asia/Taipei")
 
@@ -164,7 +164,7 @@ class History:
         arr = self.bars[code]
         if day >= TRACKING_START and arr.maxlen is not None:
             # GitHub runner files are ephemeral; reconstruct complete tracking
-            # history since 2026-10-08, without relying on cache/artifact state.
+            # history since 2026-10-16, without relying on cache/artifact state.
             arr = deque(arr)
             self.bars[code] = arr
         if arr and day < arr[-1]["date"]:
