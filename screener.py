@@ -62,8 +62,41 @@ def cli():
     p.add_argument('--etf-csv',help='Optional verified ETF holdings changes CSV')
     p.add_argument('--as-of',help='Run historical/offline day; live mode must be most recent session')
     p.add_argument('--start',default=TRACKING_START,help='First possible entry YYYY-MM-DD')
-    p.add_argument('--allow-stale',action='store_true',help='Manual report for last prior session, NOT daily schedule')
+    p.add_argument('--allow-stale',action='store_true',help='Allow a manual report from the last complete session on a non-trading day')
     return p.parse_args()
+
+
+def choose_latest_session(session_obj, twse, tpex, official_day, today, allow_stale=False):
+    """Return aligned quotes and source date; never invent a non-trading session.
+
+    Automated schedules use the current session only. Explicit manual runs
+    may reuse the most recent complete aligned TWSE/TPEx close on weekends,
+    exchange holidays, and when today's final close is not available yet.
+    """
+    if official_day > today:
+        raise RuntimeError(f'Official market date {official_day} is later than execution date {today}')
+    if official_day == today:
+        return twse, tpex, official_day, False
+
+    # A weekday can be an ordinary trading day, with one of the latest-only
+    # OpenAPIs lagging. Check exact-date TWSE first before declaring a holiday.
+    if date.fromisoformat(today).weekday() < 5:
+        print(f'Latest quote date {official_day}; checking official dated quotes for {today}', flush=True)
+        listed = ds.historical_twse(session_obj, today)
+        if len(listed) >= 100:
+            otc = ds.historical_tpex(session_obj, today)
+            if len(otc) < 100:
+                raise RuntimeError(f'{today}: TWSE has data, but TPEx is incomplete ({len(otc)}); refuse partial scan')
+            return listed, otc, today, False
+
+    if allow_stale:
+        print(f'[PRIOR SESSION REPORT] executed {today}; using aligned official close of {official_day}. '
+              'This is not a new trading session.', flush=True)
+        return twse, tpex, official_day, True
+
+    print(f'SKIP: no complete TWSE/TPEx quotes for {today}; last available {official_day}. '
+          'Automatic schedule will not repeat a previous-session report.', flush=True)
+    return None
 
 
 def main():
@@ -71,7 +104,7 @@ def main():
     today=datetime.now(TZ).date().isoformat()
     if args.as_of: date.fromisoformat(args.as_of)
     start=date.fromisoformat(args.start).isoformat()
-    if not args.csv and not args.as_of and datetime.now(TZ).weekday()>=5:
+    if not args.csv and not args.as_of and datetime.now(TZ).weekday()>=5 and not args.allow_stale:
         print('SKIP: weekend/non-trading day; no report sent.',flush=True);return
     history=ds.History()
     if args.csv:
@@ -86,19 +119,12 @@ def main():
         origin='Offline CSV supplied by user, NOT real-time market completeness verified'
     else:
         s,twse,tpex,official_day=ds.fetch_official_latest_pair()
-        if not args.as_of and official_day!=today:
-            # Both latest-only OpenAPIs can lag together. Attempt exact-date
-            # quote endpoints before assuming the exchange is closed.
-            print(f'Latest-only endpoints report {official_day}; checking dated market data {today}',flush=True)
-            listed=ds.historical_twse(s,today)
-            if len(listed)>=100:
-                otc=ds.historical_tpex(s,today)
-                if len(otc)<100:
-                    raise RuntimeError(f'{today}: TWSE available but TPEx incomplete; refuse partial screen')
-                twse,tpex,official_day=listed,otc,today
-            else:
-                print(f'SKIP: no TWSE dated quotes for {today}; holiday/data unpublished. No stale alert.',flush=True)
+        prior_session_report=False
+        if not args.as_of:
+            selection=choose_latest_session(s,twse,tpex,official_day,today,allow_stale=args.allow_stale)
+            if selection is None:
                 return
+            twse,tpex,official_day,prior_session_report=selection
         if args.as_of and args.as_of!=official_day:
             raise RuntimeError('Live mode --as-of must equal aligned official latest date; use --csv for historical replay')
         if official_day<start:
@@ -122,7 +148,8 @@ def main():
           'etf':etf_info,'universe_count':len(resolved),
           'raw_records_loaded':history.rows_loaded,'price_basis':'unadjusted exchange OHLCV',
           'coverage':'full-market coverage checks passed' if not args.csv else 'offline sample; NOT verified full market',
-          'execution':today}
+          'execution':today,
+          'report_mode':'manual_prior_session' if not args.csv and prior_session_report else 'latest_session'}
     if not result['latest']:
         print(f'No tracked market dates since {start}; nothing to publish.',flush=True);return
     write_all(args.output,result,info)
