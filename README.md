@@ -1,5 +1,14 @@
 # Taiwan Momentum Scanner v2 — 新獨立專案
 
+## 📊 直接查看最新盤後報告
+
+**[開啟最新觀察名單、每日新增／剔除、連續收益（單一頁面）](dashboard/README.md)**
+
+**[取得完整獨立 HTML 報告（含十日走勢圖、歷史進出場與逐日明細）](dashboard/report.html)**：進入檔案頁後按 **Download raw file**，下載單一 `report.html`，以 Chrome 開啟即可。
+
+**每次 GitHub Actions 執行完成後，點進該次 Run 的 Summary，也會直接顯示整份報告**，不必再找 Artifacts。首次使用需要再手動執行一次 Run workflow，讓 `dashboard/` 自動建立；若休市且沒新報告，固定頁面會保留上次的完整交易日資料。歷史指定日期仍會顯示在該次 Actions Summary，但比目前固定頁面更舊的報告不會覆蓋最新頁面。
+
+
 > **重要**：這是一套全新策略，追蹤起點預設為 **2026-10-16**。不會改動你既有的 `tw-momentum-screener` Repository。所有輸出均為盤後收盤價的理論觀察與報酬，並非下單系統。
 
 ## 1. 策略定義（嚴格不等式）
@@ -35,7 +44,7 @@
 - 不會因 ETF API 失敗而臆測 ETF 未加碼；沒有 API 時 B1 顯示 unknown，B2～B4 仍可觸發入選。
 - 排程僅在今天已有雙市場完整收盤行情時發布最新報告。**手動執行（workflow_dispatch）** 即使是週末、國定假日，或今日尚未有完整收盤資料，也允許重印**最近一個已完成交易日**的報告；絕不將該報告標示為今日新行情。資料日期不符或任一市場資料過少時仍拒絕不完整市場名單。
 
-## 3. 盤後報告（GitHub Actions Artifacts）
+## 3. 盤後報告（GitHub Summary、Repository 固定頁面與 Artifacts）
 
 - `report.html`：瀏覽器開啟，固定 **一、觀察清單；二、新增、剔除清單；三、連續收益**。觀察清單包含代號、名稱、收盤、成交量、均量倍率、今日漲跌幅、MA20/60/120、RSI、K/D、入選原因、10 日收盤價小折線圖。
 - `watchlist.csv`：最新仍在追蹤的股票，含 B/E 條件與追蹤天數。
@@ -53,7 +62,7 @@
 4. GitHub Desktop 填 commit 訊息 `Initialize momentum scan v2`，按 **Commit to main → Push origin**。推送後在 GitHub 的 Code 頁應能看到 `.github/workflows/daily_scan.yml`。
 5. 若需要 B1 ETF，自行申請 Fugle API key（必須具備 ETF Holdings 端點權限）。到 Repository → **Settings → Secrets and variables → Actions → New repository secret**，名稱 `FUGLE_API_KEY`，值為個人的密鑰；**不要上傳到程式碼或聊天室**。
 6. 到 **Actions → Taiwan Momentum V2 Daily → Run workflow**。欲立即取得 **2026-10-16（Day 1）** 的盤後報告，在 `report_date` 欄填入 `2026-10-16` 再執行；這會使用 **10/16 及之前的行情**，不會混入 10/19 的未來資料。日後手動執行若要最近完整交易日，請將 `report_date` **留白**。**自動排程**仍只處理新交易日，休市日／未公布新行情時 SKIP。追蹤起點固定為 2026-10-16（Day 1），後續各交易日累積追蹤。正常交易日 18:30（台灣時間）GitHub 會嘗試自動執行，可能延遲。
-7. 成功執行的 Actions 詳細頁 → **Artifacts** → `momentum-v2-report-N` → 下載 ZIP，解壓縮雙擊 `report.html`。
+7. 成功執行後，**Actions → 該次執行 → Summary** 直接讀取完整 Markdown 表格；或按本 README 頂部的「最新報告」連結，直接在 GitHub 瀏覽器檢視。需要獨立 HTML 時，到 `dashboard/report.html` 按「Download raw file」即可取得單一檔案（保留十日折線圖及逐日紀錄）。Artifacts ZIP 仍保留全部 CSV 供回測。
 
 > 此專案是新 ZIP，需要在你的 GitHub 帳號建立新 Repository 後自行 push。系統沒有替你建立或修改任何現有 GitHub Repository。
 
