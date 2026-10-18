@@ -1,6 +1,6 @@
 # Taiwan Momentum Scanner v2 — 新獨立專案
 
-> **重要**：這是一套全新策略，追蹤起點預設為 **2026-10-19**。不會改動你既有的 `tw-momentum-screener` Repository。所有輸出均為盤後收盤價的理論觀察與報酬，並非下單系統。
+> **重要**：這是一套全新策略，追蹤起點預設為 **2026-10-16**。不會改動你既有的 `tw-momentum-screener` Repository。所有輸出均為盤後收盤價的理論觀察與報酬，並非下單系統。
 
 ## 1. 策略定義（嚴格不等式）
 
@@ -43,7 +43,7 @@
 - `continuous_returns.csv`：仍在觀察清單至少 2 個有報價交易日的股票，依自入選日收盤價至最新收盤價的理論累積報酬排序。
 - `trades.csv`：已完成的假設收盤進、收盤出交易紀錄；`daily_watchlist.csv`、`changes.csv`：逐日名單狀態，可做事後統計；`metadata.json`：來源及 ETF 完整性聲明。
 
-追蹤從 `TRACKING_START` 之後每次重算，避免 GitHub Actions runner 暫存資料遺失；回測早於起點的日線只用來計算技術指標，不會出現在追蹤名單中。**每次執行皆以同一份歷史資料重播，第三方歷史資料修改會影響既有報酬。** 停牌或沒有新報價的股票不會偽造新價格，屬於資料陳舊，報告另行保留 stale 標記。
+追蹤自 `TRACKING_START` 當日（含）開始，每次重算，避免 GitHub Actions runner 暫存資料遺失；回測早於起點的日線只用來計算技術指標，不會出現在追蹤名單中。**每次執行皆以同一份歷史資料重播，第三方歷史資料修改會影響既有報酬。** 停牌或沒有新報價的股票不會偽造新價格，屬於資料陳舊，報告另行保留 stale 標記。
 
 ## 4. 建立新 Repository（Windows、GitHub Desktop 最容易）
 
@@ -52,7 +52,7 @@
 3. 以 [GitHub Desktop](https://desktop.github.com/) 把新 Repository clone 到電腦。在專案本機資料夾內，複製本 ZIP 解出的所有檔案與子資料夾，包含 `.github`、`tests`、`engine.py` 等。
 4. GitHub Desktop 填 commit 訊息 `Initialize momentum scan v2`，按 **Commit to main → Push origin**。推送後在 GitHub 的 Code 頁應能看到 `.github/workflows/daily_scan.yml`。
 5. 若需要 B1 ETF，自行申請 Fugle API key（必須具備 ETF Holdings 端點權限）。到 Repository → **Settings → Secrets and variables → Actions → New repository secret**，名稱 `FUGLE_API_KEY`，值為個人的密鑰；**不要上傳到程式碼或聊天室**。
-6. 到 **Actions → Taiwan Momentum V2 Daily → Run workflow** 手動測試。**手動執行**在非交易日會使用最近完整交易日行情產出回顧報告；**自動排程**在休市日／未公布新行情時仍會 SKIP。報告追蹤起點固定為 2026-10-19，因此該日期之前不會有新策略入選紀錄。正常交易日 18:30（台灣時間）GitHub 會嘗試自動執行，可能延遲。
+6. 到 **Actions → Taiwan Momentum V2 Daily → Run workflow**。欲立即取得 **2026-10-16（Day 1）** 的盤後報告，在 `report_date` 欄填入 `2026-10-16` 再執行；這會使用 **10/16 及之前的行情**，不會混入 10/19 的未來資料。日後手動執行若要最近完整交易日，請將 `report_date` **留白**。**自動排程**仍只處理新交易日，休市日／未公布新行情時 SKIP。追蹤起點固定為 2026-10-16（Day 1），後續各交易日累積追蹤。正常交易日 18:30（台灣時間）GitHub 會嘗試自動執行，可能延遲。
 7. 成功執行的 Actions 詳細頁 → **Artifacts** → `momentum-v2-report-N` → 下載 ZIP，解壓縮雙擊 `report.html`。
 
 > 此專案是新 ZIP，需要在你的 GitHub 帳號建立新 Repository 後自行 push。系統沒有替你建立或修改任何現有 GitHub Repository。
@@ -67,12 +67,14 @@ python screener.py --cache data/archive --output output
 
 公開歷史 ZIP 第一次執行可能超過數分鐘，GitHub Actions 設定 55 分鐘上限。若沒有最新交易日資料會安全停止。
 
+如需指定真實市場過去交易日，也可執行 `python screener.py --as-of 2026-10-16 --output output`。該模式從官方指定日期歷史盤後 API 查詢上市／上櫃行情，並檢查交易日、資料筆數及來源完整性；**不能保證第三方服務當下可用**。
+
 可使用 **本地 CSV** 測試（這只能證明程式流程，不能聲稱市場資料完整）：
 
 ```bash
 python screener.py --csv examples/sample_prices.csv \
     --sectors examples/sample_companies.csv --as-of 2026-10-23 \
-    --start 2026-10-19 --output output-demo
+    --start 2026-10-16 --output output-demo
 ```
 
 ETF 本地 CSV 欄位：`date,etf,code,quantity_change`；欲連用，再追加 `--etf-csv your_etf_data.csv`。不同 ETF 的缺失日不可自行補 0；請核實資料揭露日。
