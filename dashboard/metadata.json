@@ -1,5 +1,5 @@
 {
-  "source_date": "2026-10-20",
+  "source_date": "2026-10-21",
   "start": "2026-10-16",
   "sources": "TWSE + TPEx official daily quote API (latest), dated after-trading API (patch), public community historical ZIP archive",
   "etf": {
@@ -17,20 +17,20 @@
     ],
     "note": "No FUGLE_API_KEY; B1 is unknown (never counted as triggered)."
   },
-  "universe_count": 1967,
-  "raw_records_loaded": 821655,
+  "universe_count": 1968,
+  "raw_records_loaded": 823595,
   "price_basis": "unadjusted exchange OHLCV",
   "coverage": "full-market coverage checks passed",
-  "execution": "2026-10-20",
+  "execution": "2026-10-21",
   "report_mode": "latest_session",
   "counts": {
-    "watchlist": 11,
+    "watchlist": 13,
     "added": 2,
-    "removed": 7,
-    "continuous": 9,
+    "removed": 0,
+    "continuous": 11,
     "ledger": 7,
-    "daily_rows": 42,
-    "blocked": 2
+    "daily_rows": 55,
+    "blocked": 3
   },
-  "as_of": "2026-10-20"
+  "as_of": "2026-10-21"
 }
