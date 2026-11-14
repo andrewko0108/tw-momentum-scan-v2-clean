@@ -99,9 +99,9 @@ jobs:
       - name: Send daily report email
         if: ${{ always() && (github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.email_report == true)) }}
         env:
-          REPORT_SMTP_USER: ${{ secrets.REPORT_SMTP_USER }}
+          REPORT_SMTP_USER: 'andrewko0108@gmail.com'
           REPORT_SMTP_APP_PASSWORD: ${{ secrets.REPORT_SMTP_APP_PASSWORD }}
-          REPORT_EMAIL_TO: ${{ secrets.REPORT_EMAIL_TO }}
+          REPORT_EMAIL_TO: 'andrewko0108@gmail.com'
         run: python email_report.py --report output/report.html --metadata output/metadata.json --markdown output/report.md
 
       - name: Upload screening report
