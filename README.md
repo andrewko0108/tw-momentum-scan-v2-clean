@@ -1,5 +1,19 @@
 # Taiwan Momentum Scanner v2 — 新獨立專案
 
+## ✉️ 每日盤後自動寄送 Gmail
+
+自動排程（台灣時間週一至週五 18:30）完成雙市場行情篩選後，透過 `email_report.py` 寄送完整報告，寄件與收件信箱均預設為 **andrewko0108@gmail.com**。郵件包含主旨中的觀察／新增／剔除／連續收益筆數、內嵌完整 HTML 報告、單獨 `momentum-report.html` 附件。沒有交易日新資料或資料完整性不足時**不寄送**；手動 Run workflow 預設不寄，只有勾選 `email_report` 時才會寄送，避免重複寄信。
+
+### 啟用（本人必須完成一次）
+1. 登入欲用來寄信的 Gmail 帳號，前往 [Google 帳號兩步驟驗證](https://myaccount.google.com/signinoptions/two-step-verification)，啟用兩步驟驗證（若尚未啟用）。
+2. 到 [Google 應用程式密碼](https://myaccount.google.com/apppasswords)，建立一組給此 GitHub 篩選器使用的 **16 位應用程式密碼**（若帳號使用進階保護、組織政策限制等，可能無法建立）。
+3. 到 Repository 的 **Settings → Secrets and variables → Actions → New repository secret**，新增：
+   - Name：`REPORT_SMTP_APP_PASSWORD`
+   - Secret：Google 產生的**應用程式密碼**（不是平常登入 Gmail 的密碼）
+4. 如要測試，去 **Actions → Taiwan Momentum V2 Daily → Run workflow**，`report_date` 留白代表最近完整交易日；勾選 `email_report` 才會真的寄送。查看 `Send daily report email` 的執行紀錄，成功會顯示 `EMAIL SENT`。
+
+**不要**將密碼貼到聊天室、程式碼或 GitHub 的一般 Variables。若密碼遺失或外洩，請在 Google 帳號撤銷；本專案沒有在 Repository 內儲存密碼。
+
 ## 📊 直接查看最新盤後報告
 
 **[開啟最新觀察名單、每日新增／剔除、連續收益（單一頁面）](dashboard/README.md)**
