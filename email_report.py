@@ -65,10 +65,9 @@ def prepare_message(
     msg.set_content(intro + plain_text)
     # Many mail clients sanitize inline SVG/CSS; the attachment remains intact.
     msg.add_alternative(report_html, subtype="html")
-    msg.add_attachment(
-        report_html.encode("utf-8"), maintype="text", subtype="html",
-        filename=filename
-    )
+    # Use a text/html attachment with an explicit UTF-8 charset so Chinese
+    # stock names render correctly when Gmail or a browser opens the file.
+    msg.add_attachment(report_html, subtype="html", filename=filename)
     return msg
 
 
