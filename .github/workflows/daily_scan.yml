@@ -6,6 +6,11 @@ on:
         description: '指定交易日 YYYY-MM-DD；填 2026-10-16 產生 Day 1，留空代表最近已完成的交易日'
         required: false
         type: string
+      email_report:
+        description: '手動執行後寄出報告 Email（預設不寄；自動排程會寄）'
+        required: false
+        type: boolean
+        default: false
   schedule:
     # 18:30 Asia/Taipei (UTC+8) Monday to Friday; holiday/stale-date guard in Python.
     - cron: '30 10 * * 1-5'
@@ -90,6 +95,14 @@ jobs:
           fi
           git commit -m "Update momentum dashboard for $NEW_DATE"
           git push origin HEAD:main
+
+      - name: Send daily report email
+        if: ${{ always() && (github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.email_report == true)) }}
+        env:
+          REPORT_SMTP_USER: ${{ secrets.REPORT_SMTP_USER }}
+          REPORT_SMTP_APP_PASSWORD: ${{ secrets.REPORT_SMTP_APP_PASSWORD }}
+          REPORT_EMAIL_TO: ${{ secrets.REPORT_EMAIL_TO }}
+        run: python email_report.py --report output/report.html --metadata output/metadata.json --markdown output/report.md
 
       - name: Upload screening report
         if: always()
