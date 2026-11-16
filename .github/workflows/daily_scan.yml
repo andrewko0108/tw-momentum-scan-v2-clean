@@ -12,13 +12,14 @@ on:
         type: boolean
         default: false
   schedule:
-    # 18:30 Asia/Taipei (UTC+8) Monday to Friday; holiday/stale-date guard in Python.
-    - cron: '30 10 * * 1-5'
+    # 18:43 Asia/Taipei (UTC+8) Mon-Fri; avoid peak scheduling boundaries.
+    # GitHub cron may be delayed until the next local calendar day.
+    - cron: '43 10 * * 1-5'
 permissions:
   contents: write
 jobs:
   scan:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 55
     env:
       PYTHONUNBUFFERED: '1'
@@ -26,9 +27,9 @@ jobs:
       ETF_SYMBOLS: '0050,00981A,00403A'
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
       - name: Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: '3.12'
           cache: pip
@@ -37,7 +38,7 @@ jobs:
       - name: Run unit tests
         run: python -m unittest discover -s tests -v
       - name: Cache yearly / weekly archives
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: data/archive
           key: momentum-v2-archive-${{ runner.os }}-2026-v1
@@ -52,8 +53,38 @@ jobs:
               python screener.py --cache data/archive --output output --allow-stale
             fi
           else
-            python screener.py --cache data/archive --output output
+            # Cron may arrive after midnight Taipei. Use latest verified close.
+            python screener.py --cache data/archive --output output --allow-stale
           fi
+
+      - name: Identify new completed trading report
+        id: report_gate
+        if: success()
+        shell: bash
+        run: |
+          if [ ! -s output/report.html ] || [ ! -s output/report.md ] || [ ! -s output/metadata.json ]; then
+            echo "new=false" >> "$GITHUB_OUTPUT"
+            echo "No completed report; nothing to publish or email."
+            exit 0
+          fi
+
+          NEW_DATE=$(python -c 'import json;print(json.load(open("output/metadata.json"))["as_of"])')
+          echo "source_date=$NEW_DATE" >> "$GITHUB_OUTPUT"
+          if [ "${{ github.event_name }}" = "schedule" ]; then
+            # Compare against live main instead of the trigger's possibly stale SHA.
+            git fetch origin main --quiet
+            OLD_DATE=$(git show origin/main:dashboard/metadata.json 2>/dev/null \
+              | python -c 'import json,sys; print(json.load(sys.stdin).get("as_of", ""))' \
+              || true)
+            if [ -n "$OLD_DATE" ] && [[ "$NEW_DATE" == "$OLD_DATE" || "$NEW_DATE" < "$OLD_DATE" ]]; then
+              echo "new=false" >> "$GITHUB_OUTPUT"
+              echo "Report for $NEW_DATE already published (current: $OLD_DATE); skipping duplicate update/email."
+              exit 0
+            fi
+          fi
+          echo "new=true" >> "$GITHUB_OUTPUT"
+          echo "Verified trading date $NEW_DATE; ready to publish."
+
       - name: Show entire report on Actions Summary
         if: always()
         run: |
@@ -68,12 +99,15 @@ jobs:
           fi
 
       - name: Publish latest dashboard to Repository
-        if: success()
+        if: ${{ success() && steps.report_gate.outputs.new == 'true' }}
         run: |
           if [ ! -f output/report.html ] || [ ! -f output/report.md ] || [ ! -f output/metadata.json ]; then
             echo "No completed report; dashboard unchanged."
             exit 0
           fi
+          # Publish onto the latest branch head even when scheduling is delayed.
+          git fetch origin main --quiet
+          git checkout -B report-publish origin/main
           mkdir -p dashboard
           NEW_DATE=$(python -c 'import json;print(json.load(open("output/metadata.json"))["as_of"])')
           if [ -f dashboard/metadata.json ]; then
@@ -97,7 +131,7 @@ jobs:
           git push origin HEAD:main
 
       - name: Send daily report email
-        if: ${{ always() && (github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.email_report == true)) }}
+        if: ${{ success() && steps.report_gate.outputs.new == 'true' && (github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.email_report == true)) }}
         env:
           REPORT_SMTP_USER: 'andrewko0108@gmail.com'
           REPORT_SMTP_APP_PASSWORD: ${{ secrets.REPORT_SMTP_APP_PASSWORD }}
@@ -106,7 +140,7 @@ jobs:
 
       - name: Upload screening report
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: momentum-v2-report-${{ github.run_number }}
           path: output/
