@@ -63,7 +63,7 @@ class TemporarySourceError(RuntimeError):
     """A data source did not deliver one COMPLETE, parseable JSON response."""
 
 
-def fetch_json_reliably(s, url, *, params=None, timeout=55, label="資料來源", attempts=4):
+def fetch_json_reliably(s, url, *, params=None, timeout=55, label="資料來源", attempts=4, headers=None):
     """Retry a WHOLE JSON response, including mid-body ChunkedEncodingError.
 
     An HTTPAdapter retry alone cannot recover a transfer that dies while
@@ -75,8 +75,11 @@ def fetch_json_reliably(s, url, *, params=None, timeout=55, label="資料來源"
     for attempt in range(1, attempts + 1):
         try:
             # Close the response even when parsing/reading raises mid-stream.
+            request_headers = {"Connection": "close", "Cache-Control": "no-cache"}
+            if headers:
+                request_headers.update(headers)
             with s.get(url, params=params, timeout=timeout, stream=True,
-                       headers={"Connection": "close", "Cache-Control": "no-cache"}) as response:
+                       headers=request_headers) as response:
                 response.raise_for_status()
                 # .json() reads the ENTIRE response body. Body truncation can
                 # raise ChunkedEncodingError *here*, not at HTTP connect time.
@@ -267,7 +270,23 @@ def scan_csv(history, path, as_of):
 def download_archives(history, cache_dir, as_of, start_year, force_current=True, archive_end=None):
     cache_dir.mkdir(parents=True, exist_ok=True)
     s = session()
-    payload = fetch_json_reliably(s, RELEASE_API, timeout=45, label="GitHub historical releases")
+    # Hosted Actions runners share public outbound IPs. Unauthenticated GitHub
+    # REST requests have a shared-IP quota, which can be exhausted by others.
+    # Authenticate ONLY this GitHub API call; do not send the token to TWSE,
+    # TPEx, or third-party asset download URLs.
+    token = os.environ.get("GITHUB_TOKEN", "").strip()
+    release_headers = {
+        "Accept": "application/vnd.github+json",
+        "X-GitHub-Api-Version": "2022-11-28",
+    }
+    if token:
+        release_headers["Authorization"] = f"Bearer {token}"
+        print("GitHub historical releases: authenticated API request", flush=True)
+    else:
+        print("GitHub historical releases: unauthenticated API request (rate-limit risk)", flush=True)
+    payload = fetch_json_reliably(
+        s, RELEASE_API, timeout=45, label="GitHub historical releases",
+        headers=release_headers)
     assets = {x['name']: x['browser_download_url'] for x in payload.get('assets', [])}
     if not assets:
         raise RuntimeError('GitHub Release has no assets. Check release and permissions.')
