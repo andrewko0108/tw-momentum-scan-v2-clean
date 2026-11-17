@@ -45,6 +45,7 @@ jobs:
       - name: Run screener
         env:
           REPORT_DATE: ${{ inputs.report_date }}
+          GITHUB_TOKEN: ${{ github.token }}
         run: |
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             if [ -n "$REPORT_DATE" ]; then
