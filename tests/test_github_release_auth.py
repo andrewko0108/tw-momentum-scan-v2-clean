@@ -25,6 +25,7 @@ class Response:
 class TestGithubReleaseAuthentication(unittest.TestCase):
     def test_extra_auth_header_is_request_scoped(self):
         session = Mock()
+        session.headers = {}
         session.get.return_value = Response()
         ds.fetch_json_reliably(
             session, ds.RELEASE_API, attempts=1,
